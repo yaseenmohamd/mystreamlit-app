@@ -198,7 +198,7 @@ if region_data is not None and weights is not None:
         'Outgoing_Commuters': 'Socio-Economic Factors',
         'Commuter_Flow_Total': 'Mobility Demand',
         'Area_km2': 'Operational Feasibility',
-        'Settlement_Type': 'Operational Feasibility',
+        'Settlement_Type': 'Geographic Constraints',
         'PT_Class': 'Public Transport Integration',
         'PT_Gap_20min': 'Public Transport Integration',
         'Has_Railway_Station': 'Public Transport Integration',

@@ -184,7 +184,7 @@ if region_data is not None and weights is not None:
         'Has_Railway_Station': 'Benefit',
         'PT_Class': 'Benefit',
         'PT_Gap_20min': 'Benefit',
-        'Settlement_Type': 'Cost',
+        'Settlement_Type': 'Benefit',
         'PT_Inadequacy_Score': 'Benefit',
         'Commuter_Flow_Total': 'Benefit'
     }

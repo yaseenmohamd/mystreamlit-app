@@ -312,20 +312,23 @@ if st.session_state.data_loaded:
     scores_sorted = scores.sort_values('Total Score', ascending=False).reset_index(drop=True)
     
     # Main content area with tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Results", "Map Visualization", "Sensitivity Analysis", "Data Explorer"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Results", "Map Visualization", "Sensitivity Analysis", "Data Explorer", "Additional Visualizations"])
     
     with tab1:
         st.markdown("<h2 class='sub-header'>MCDA Results</h2>", unsafe_allow_html=True)
         
-        # Display top 20 results
-        st.markdown("<h3>Top 20 Gemeinden</h3>", unsafe_allow_html=True)
+        # Number of top gemeinden to display
+        num_top_gemeinden = st.slider("Number of top gemeinden to display", min_value=10, max_value=100, value=20, step=10)
+        
+        # Display top N results
+        st.markdown(f"<h3>Top {num_top_gemeinden} Gemeinden</h3>", unsafe_allow_html=True)
         
         # Scale scores to 0-100 for better readability
         display_scores = scores_sorted.copy()
         display_scores['Total Score'] = display_scores['Total Score'] * 100
         
-        # Display top 20
-        st.dataframe(display_scores[['Rank', 'Region', 'Total Score']].head(20).style.format({'Total Score': '{:.2f}'}))
+        # Display top N
+        st.dataframe(display_scores[['Rank', 'Region', 'Total Score']].head(num_top_gemeinden).style.format({'Total Score': '{:.2f}'}))
         
         # Download link for full results
         st.markdown(to_excel_download_link(display_scores, "mcda_results.xlsx", "Results"), unsafe_allow_html=True)
@@ -368,6 +371,10 @@ if st.session_state.data_loaded:
         if st.session_state.gemeinde_boundaries is not None:
             # Merge scores with boundaries
             gdf = st.session_state.gemeinde_boundaries.merge(scores_sorted, on='Region', how='inner')
+            
+            # Merge with original data to get additional columns for hover
+            gdf = gdf.merge(filtered_data[['Gemeindename', 'Population', 'Incoming_Commuters', 'Outgoing_Commuters', 'PT_Inadequacy_Score', 'PT_Class', 'Settlement_Type']], 
+                           left_on='Region', right_on='Gemeindename', how='left')
             
             # Scale scores to 0-100 for better readability
             gdf['Score_100'] = gdf['Total Score'] * 100
@@ -414,7 +421,11 @@ if st.session_state.data_loaded:
             # Create GeoJSON for Plotly
             geojson = gdf_wgs84.__geo_interface__
             
-            # Create choropleth map
+            # Map settlement type to text description
+            settlement_map = {1: "Urban", 2: "Intermediate", 3: "Rural"}
+            gdf_wgs84['Settlement_Type_Text'] = gdf_wgs84['Settlement_Type'].map(settlement_map)
+            
+            # Create choropleth map with enhanced hover data
             fig = px.choropleth_mapbox(
                 gdf_wgs84,
                 geojson=geojson,
@@ -425,8 +436,86 @@ if st.session_state.data_loaded:
                 zoom=7,
                 center={"lat": 46.8, "lon": 8.2},
                 opacity=0.7,
-                labels={'Score_100': 'MCDA Score (0-100)'},
-                hover_data=['Region', 'Score_100']
+                labels={
+                    'Score_100': 'MCDA Score (0-100)',
+                    'Population': 'Population',
+                    'Incoming_Commuters': 'Incoming Commuters',
+                    'Outgoing_Commuters': 'Outgoing Commuters',
+                    'PT_Inadequacy_Score': 'PT Inadequacy Score',
+                    'PT_Class': 'PT Class',
+                    'Settlement_Type_Text': 'Settlement Type'
+                },
+                hover_data={
+                    'Region': True,
+                    'Score_100': ':.2f',
+                    'Population': True,
+                    'Incoming_Commuters': True,
+                    'Outgoing_Commuters': True,
+                    'PT_Inadequacy_Score': ':.2f',
+                    'PT_Class': True,
+                    'Settlement_Type_Text': True,
+                    'Rank': True
+                }
+            )
+            fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Map color by different criteria
+            st.markdown("<h3>Map by Different Criteria</h3>", unsafe_allow_html=True)
+            
+            map_criteria = st.selectbox(
+                "Select criterion to visualize on map",
+                options=['MCDA Score', 'Population', 'PT_Class', 'PT_Inadequacy_Score', 'Settlement_Type', 'Has_Railway_Station'],
+                index=0
+            )
+            
+            if map_criteria == 'MCDA Score':
+                color_column = 'Score_100'
+                color_scale = 'Blues'
+                color_label = 'MCDA Score (0-100)'
+            elif map_criteria == 'Population':
+                color_column = 'Population'
+                color_scale = 'Viridis'
+                color_label = 'Population'
+            elif map_criteria == 'PT_Class':
+                color_column = 'PT_Class'
+                color_scale = 'RdBu_r'  # Reversed so that 5 (best) is blue and 1 (worst) is red
+                color_label = 'PT Class (1=least, 5=best)'
+            elif map_criteria == 'PT_Inadequacy_Score':
+                color_column = 'PT_Inadequacy_Score'
+                color_scale = 'Reds'
+                color_label = 'PT Inadequacy Score'
+            elif map_criteria == 'Settlement_Type':
+                color_column = 'Settlement_Type'
+                color_scale = 'Viridis'
+                color_label = 'Settlement Type (1=Urban, 2=Intermediate, 3=Rural)'
+            elif map_criteria == 'Has_Railway_Station':
+                color_column = 'Has_Railway_Station'
+                color_scale = ['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
+                color_label = 'Has Railway Station (0=No, 1=Yes)'
+            
+            fig = px.choropleth_mapbox(
+                gdf_wgs84,
+                geojson=geojson,
+                locations=gdf_wgs84.index,
+                color=color_column,
+                color_continuous_scale=color_scale if not isinstance(color_scale, list) else None,
+                color_discrete_sequence=color_scale if isinstance(color_scale, list) else None,
+                mapbox_style="carto-positron",
+                zoom=7,
+                center={"lat": 46.8, "lon": 8.2},
+                opacity=0.7,
+                labels={color_column: color_label},
+                hover_data={
+                    'Region': True,
+                    'Score_100': ':.2f',
+                    'Population': True,
+                    'Incoming_Commuters': True,
+                    'Outgoing_Commuters': True,
+                    'PT_Inadequacy_Score': ':.2f',
+                    'PT_Class': True,
+                    'Settlement_Type_Text': True
+                }
             )
             fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
             st.plotly_chart(fig, use_container_width=True)
@@ -488,6 +577,14 @@ if st.session_state.data_loaded:
                 'Operational Feasibility': 0.1,
                 'Public Transport Integration': 0.5,
                 'Geographic Constraints': 0.1
+            },
+            "Focus on Rural Areas": {
+                'Demographic Characteristics': 0.1,
+                'Socio-Economic Factors': 0.1,
+                'Mobility Demand': 0.1,
+                'Operational Feasibility': 0.2,
+                'Public Transport Integration': 0.1,
+                'Geographic Constraints': 0.4
             }
         }
         
@@ -514,13 +611,16 @@ if st.session_state.data_loaded:
         )
         st.plotly_chart(fig, use_container_width=True)
         
+        # Number of gemeinden to analyze in rank stability
+        num_gemeinden_stability = st.slider("Number of gemeinden for rank stability analysis", min_value=10, max_value=50, value=20, step=5)
+        
         # Rank stability analysis
         st.markdown("<h3>Rank Stability Analysis</h3>", unsafe_allow_html=True)
         
         # Get top gemeinden across all scenarios
         top_gemeinden = set()
         for name, results in scenario_results.items():
-            top_gemeinden.update(results.head(10)['Region'].tolist())
+            top_gemeinden.update(results.head(num_gemeinden_stability)['Region'].tolist())
         
         # Create rank comparison dataframe
         rank_comparison = pd.DataFrame({'Region': list(top_gemeinden)})
@@ -529,7 +629,7 @@ if st.session_state.data_loaded:
             rank_comparison[f'{name} Rank'] = rank_comparison['Region'].map(lambda x: rank_map.get(x, float('nan')))
         
         # Sort by current rank
-        rank_comparison = rank_comparison.sort_values('Current Rank').head(20)
+        rank_comparison = rank_comparison.sort_values('Current Rank').head(num_gemeinden_stability)
         
         # Display rank comparison
         st.dataframe(rank_comparison)
@@ -557,6 +657,44 @@ if st.session_state.data_loaded:
             labels={'Rank': 'Rank Position'},
         )
         fig.update_layout(yaxis={'autorange': 'reversed'})  # Reverse y-axis so rank 1 is at the top
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Criteria contribution analysis
+        st.markdown("<h3>Criteria Contribution Analysis</h3>", unsafe_allow_html=True)
+        
+        # Select gemeinde for analysis
+        top_gemeinden_list = display_scores.head(20)['Region'].tolist()
+        selected_gemeinde = st.selectbox("Select gemeinde for criteria contribution analysis", options=top_gemeinden_list)
+        
+        # Get criteria scores for selected gemeinde
+        gemeinde_scores = scores[scores['Region'] == selected_gemeinde].iloc[0]
+        
+        # Extract criteria scores
+        criteria_scores = {}
+        for col in gemeinde_scores.index:
+            if col.endswith(' Score') and col != 'Total Score':
+                criteria_name = col.replace(' Score', '')
+                criteria_scores[criteria_name] = gemeinde_scores[col]
+        
+        # Create dataframe for visualization
+        criteria_df = pd.DataFrame({
+            'Criterion': list(criteria_scores.keys()),
+            'Score': list(criteria_scores.values())
+        })
+        
+        # Sort by score
+        criteria_df = criteria_df.sort_values('Score', ascending=False)
+        
+        # Create bar chart
+        fig = px.bar(
+            criteria_df,
+            x='Criterion',
+            y='Score',
+            title=f'Criteria Contribution for {selected_gemeinde}',
+            color='Score',
+            color_continuous_scale='Blues'
+        )
+        fig.update_layout(xaxis_title='Criterion', yaxis_title='Weighted Score')
         st.plotly_chart(fig, use_container_width=True)
     
     with tab4:
@@ -607,6 +745,222 @@ if st.session_state.data_loaded:
         except Exception as e:
             st.warning(f"Could not generate correlation matrix or scatter plots: {e}")
             st.info("This may be due to non-numeric data or other data quality issues.")
+    
+    with tab5:
+        st.markdown("<h2 class='sub-header'>Additional Visualizations</h2>", unsafe_allow_html=True)
+        
+        # Population vs MCDA Score
+        st.markdown("<h3>Population vs MCDA Score</h3>", unsafe_allow_html=True)
+        
+        # Create scatter plot
+        fig = px.scatter(
+            filtered_data.merge(display_scores[['Region', 'Total Score', 'Rank']], left_on='Gemeindename', right_on='Region', how='inner'),
+            x='Population',
+            y='Total Score',
+            color='Has_Railway_Station',
+            size='PT_Inadequacy_Score',
+            hover_name='Gemeindename',
+            hover_data=['Rank', 'PT_Class', 'Settlement_Type'],
+            title='Population vs MCDA Score',
+            labels={
+                'Population': 'Population',
+                'Total Score': 'MCDA Score (0-100)',
+                'Has_Railway_Station': 'Has Railway Station',
+                'PT_Inadequacy_Score': 'PT Inadequacy Score'
+            },
+            color_discrete_sequence=['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
+        )
+        
+        # Add vertical lines for ideal population range
+        fig.add_vline(x=2500, line_dash="dash", line_color="green", annotation_text="Min Ideal")
+        fig.add_vline(x=10000, line_dash="dash", line_color="green", annotation_text="Max Ideal")
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Settlement Type Distribution
+        st.markdown("<h3>Settlement Type Distribution in Top Gemeinden</h3>", unsafe_allow_html=True)
+        
+        # Number of top gemeinden to analyze
+        num_gemeinden_analysis = st.slider("Number of top gemeinden for analysis", min_value=10, max_value=100, value=50, step=10)
+        
+        # Get settlement type distribution for top N gemeinden
+        top_gemeinden_data = filtered_data.merge(
+            display_scores[['Region', 'Rank']].head(num_gemeinden_analysis), 
+            left_on='Gemeindename', 
+            right_on='Region', 
+            how='inner'
+        )
+        
+        # Map settlement type to text
+        settlement_map = {1: "Urban", 2: "Intermediate", 3: "Rural"}
+        top_gemeinden_data['Settlement_Type_Text'] = top_gemeinden_data['Settlement_Type'].map(settlement_map)
+        
+        # Create pie chart
+        fig = px.pie(
+            top_gemeinden_data,
+            names='Settlement_Type_Text',
+            title=f'Settlement Type Distribution in Top {num_gemeinden_analysis} Gemeinden',
+            color_discrete_sequence=px.colors.qualitative.Set3
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # PT Class Distribution
+        st.markdown("<h3>PT Class Distribution in Top Gemeinden</h3>", unsafe_allow_html=True)
+        
+        # Create histogram
+        fig = px.histogram(
+            top_gemeinden_data,
+            x='PT_Class',
+            title=f'PT Class Distribution in Top {num_gemeinden_analysis} Gemeinden',
+            labels={'PT_Class': 'PT Class (1=least, 5=best)'},
+            color_discrete_sequence=['#3B82F6']
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Railway Station vs Non-Railway Station Comparison
+        st.markdown("<h3>Railway Station Impact Analysis</h3>", unsafe_allow_html=True)
+        
+        # Group by railway station and calculate average scores
+        railway_comparison = display_scores.merge(
+            filtered_data[['Gemeindename', 'Has_Railway_Station']], 
+            left_on='Region', 
+            right_on='Gemeindename', 
+            how='inner'
+        )
+        
+        railway_stats = railway_comparison.groupby('Has_Railway_Station')['Total Score'].agg(['mean', 'count']).reset_index()
+        railway_stats['Has_Railway_Station'] = railway_stats['Has_Railway_Station'].map({0: 'No', 1: 'Yes'})
+        railway_stats.columns = ['Has Railway Station', 'Average MCDA Score', 'Count']
+        
+        # Create bar chart
+        fig = px.bar(
+            railway_stats,
+            x='Has Railway Station',
+            y='Average MCDA Score',
+            color='Has Railway Station',
+            text='Count',
+            title='Average MCDA Score by Railway Station Presence',
+            labels={'Average MCDA Score': 'Average MCDA Score (0-100)'},
+            color_discrete_sequence=['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
+        )
+        fig.update_traces(texttemplate='%{text} gemeinden', textposition='outside')
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Commuter Flow Analysis
+        st.markdown("<h3>Commuter Flow Analysis</h3>", unsafe_allow_html=True)
+        
+        # Create scatter plot
+        fig = px.scatter(
+            filtered_data.merge(display_scores[['Region', 'Total Score', 'Rank']], left_on='Gemeindename', right_on='Region', how='inner'),
+            x='Incoming_Commuters',
+            y='Outgoing_Commuters',
+            color='Total Score',
+            size='Population',
+            hover_name='Gemeindename',
+            hover_data=['Rank', 'PT_Class', 'Settlement_Type'],
+            title='Incoming vs Outgoing Commuters',
+            labels={
+                'Incoming_Commuters': 'Incoming Commuters',
+                'Outgoing_Commuters': 'Outgoing Commuters',
+                'Total Score': 'MCDA Score (0-100)',
+                'Population': 'Population'
+            },
+            color_continuous_scale='Blues'
+        )
+        
+        # Add diagonal line (equal incoming and outgoing)
+        max_val = max(
+            filtered_data['Incoming_Commuters'].max(),
+            filtered_data['Outgoing_Commuters'].max()
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=[0, max_val],
+                y=[0, max_val],
+                mode='lines',
+                line=dict(color='gray', dash='dash'),
+                name='Equal In/Out'
+            )
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # PT Inadequacy vs PT Class
+        st.markdown("<h3>PT Inadequacy vs PT Class</h3>", unsafe_allow_html=True)
+        
+        # Create scatter plot
+        fig = px.scatter(
+            filtered_data.merge(display_scores[['Region', 'Total Score', 'Rank']], left_on='Gemeindename', right_on='Region', how='inner'),
+            x='PT_Class',
+            y='PT_Inadequacy_Score',
+            color='Total Score',
+            size='Population',
+            hover_name='Gemeindename',
+            hover_data=['Rank', 'Settlement_Type', 'Has_Railway_Station'],
+            title='PT Class vs PT Inadequacy Score',
+            labels={
+                'PT_Class': 'PT Class (1=least, 5=best)',
+                'PT_Inadequacy_Score': 'PT Inadequacy Score',
+                'Total Score': 'MCDA Score (0-100)',
+                'Population': 'Population'
+            },
+            color_continuous_scale='Blues'
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Geographic Distribution of Top Gemeinden
+        st.markdown("<h3>Geographic Distribution of Top Gemeinden</h3>", unsafe_allow_html=True)
+        
+        if st.session_state.gemeinde_boundaries is not None:
+            # Get top N gemeinden
+            top_n = st.slider("Number of top gemeinden to highlight", min_value=10, max_value=100, value=30, step=10)
+            
+            # Merge scores with boundaries
+            gdf = st.session_state.gemeinde_boundaries.merge(scores_sorted, on='Region', how='inner')
+            
+            # Scale scores to 0-100 for better readability
+            gdf['Score_100'] = gdf['Total Score'] * 100
+            
+            # Create map highlighting top N
+            fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+            
+            # Plot all gemeinden in light gray
+            gdf.plot(
+                color='lightgray',
+                linewidth=0.5,
+                ax=ax,
+                edgecolor='white'
+            )
+            
+            # Plot top N gemeinden with color gradient
+            top_n_gdf = gdf.sort_values('Total Score', ascending=False).head(top_n)
+            top_n_gdf.plot(
+                column='Score_100',
+                cmap='Blues',
+                linewidth=0.8,
+                ax=ax,
+                edgecolor='white',
+                legend=True,
+                legend_kwds={'label': f"MCDA Score (0-100) - Top {top_n}"}
+            )
+            
+            # Add labels for top 10
+            top_10 = gdf.sort_values('Total Score', ascending=False).head(10)
+            for idx, row in top_10.iterrows():
+                ax.annotate(
+                    text=f"{row['Region']} (#{row['Rank']})",
+                    xy=(row.geometry.centroid.x, row.geometry.centroid.y),
+                    ha='center',
+                    fontsize=8,
+                    color='black',
+                    bbox=dict(facecolor='white', alpha=0.7, boxstyle="round,pad=0.3")
+                )
+            
+            ax.set_title(f'Geographic Distribution of Top {top_n} Gemeinden')
+            ax.set_axis_off()
+            st.pyplot(fig)
+        else:
+            st.warning("Gemeinde boundaries not available. Upload the GeoPackage file to enable map visualization.")
 else:
     # Display instructions if no file is uploaded
     st.markdown("""
@@ -624,9 +978,9 @@ else:
         <li><strong>Outgoing_Commuters</strong>: Number of outgoing commuters</li>
         <li><strong>Age_*</strong>: Age demographics</li>
         <li><strong>Has_Railway_Station</strong>: Whether the gemeinde has a railway station</li>
-        <li><strong>PT_Class</strong>: Public transport class</li>
+        <li><strong>PT_Class</strong>: Public transport class (1=least, 5=best)</li>
         <li><strong>PT_Gap_20min</strong>: Public transport gap</li>
-        <li><strong>Settlement_Type</strong>: Type of settlement</li>
+        <li><strong>Settlement_Type</strong>: Type of settlement (1=Urban, 2=Intermediate, 3=Rural)</li>
         <li><strong>PT_Inadequacy_Score</strong>: Public transport inadequacy score</li>
         <li><strong>Commuter_Flow_Total</strong>: Total commuter flow</li>
     </ul>
@@ -643,7 +997,7 @@ else:
 
 # Footer
 st.markdown("""
-<div style="text-align: center; margin-top: 3rem; padding: 1rem; background-color: #F3F4F6;">
+<div style="text-align: center; margin-top: 3rem; padding: 1rem; background-color: #000080;">
     <p>myBuxi MCDA Framework Visualization Tool</p>
     <p style="font-size: 0.8rem;">Created for expansion planning and sensitivity analysis</p>
 </div>

@@ -193,7 +193,7 @@ if region_data is not None and weights is not None:
     criteria_categories = {
         'Population': 'Demographic Characteristics',
         'Population_Density': 'Demographic Characteristics',
-        'Age_40_60': 'Demographic Characteristics',
+        'Age_40_65': 'Demographic Characteristics',
         'Incoming_Commuters': 'Socio-Economic Factors',
         'Outgoing_Commuters': 'Socio-Economic Factors',
         'Commuter_Flow_Total': 'Mobility Demand',

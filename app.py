@@ -71,9 +71,6 @@ def load_data_from_csv():
         data_file = './Final_MCDA_Data(1).csv'
         if os.path.exists(data_file):
             df = pd.read_csv(data_file)
-        else:
-            # Fallback to the upload directory
-            df = pd.read_csv('/home/upload/Final_MCDA_Data(1).csv')
         
         # Ensure all numeric columns are properly typed
         for col in df.columns:
@@ -212,15 +209,10 @@ if region_data is not None and weights is not None:
     try:
         # First check if the file exists in the data directory
         boundary_file_data = './historisierte-administrative_grenzen_g0_2015-01-01_2056.gpkg'
-        boundary_file_upload = '/home/upload/historisierte-administrative_grenzen_g0_2015-01-01_2056.gpkg'
+
         
         if os.path.exists(boundary_file_data):
             gemeinde_boundaries = gpd.read_file(boundary_file_data, layer='Communes_G0_20150101')
-            # Rename columns to match
-            gemeinde_boundaries = gemeinde_boundaries.rename(columns={'GDENAME': 'Region'})
-            st.session_state.gemeinde_boundaries = gemeinde_boundaries
-        elif os.path.exists(boundary_file_upload):
-            gemeinde_boundaries = gpd.read_file(boundary_file_upload, layer='Communes_G0_20150101')
             # Rename columns to match
             gemeinde_boundaries = gemeinde_boundaries.rename(columns={'GDENAME': 'Region'})
             st.session_state.gemeinde_boundaries = gemeinde_boundaries

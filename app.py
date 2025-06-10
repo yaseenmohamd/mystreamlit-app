@@ -179,7 +179,7 @@ if region_data is not None and weights is not None:
         'Age_40_65': 'Benefit',
         'Age_65_plus': 'Benefit',
         'Has_Railway_Station': 'Benefit',
-        'PT_Class': 'Benefit',
+        'PT_Class': 'Cost',
         'PT_Gap_20min': 'Benefit',
         'Settlement_Type': 'Benefit',
         'PT_Inadequacy_Score': 'Benefit',

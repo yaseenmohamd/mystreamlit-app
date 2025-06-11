@@ -755,30 +755,40 @@ if st.session_state.data_loaded:
         # Population vs MCDA Score
         st.markdown("<h3>Population vs MCDA Score</h3>", unsafe_allow_html=True)
         
-        # Create scatter plot
-        fig = px.scatter(
-            filtered_data.merge(display_scores[['Region', 'Total Score', 'Rank']], left_on='Gemeindename', right_on='Region', how='inner'),
-            x='Population',
-            y='Total Score',
-            color='Has_Railway_Station',
-            size='PT_Inadequacy_Score',
-            hover_name='Gemeindename',
-            hover_data=['Rank', 'PT_Class', 'Settlement_Type'],
-            title='Population vs MCDA Score',
-            labels={
-                'Population': 'Population',
-                'Total Score': 'MCDA Score (0-100)',
-                'Has_Railway_Station': 'Has Railway Station',
-                'PT_Inadequacy_Score': 'PT Inadequacy Score'
-            },
-            color_discrete_sequence=['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
-        )
+              # Create scatter plot with NaN handling
+        scatter_data = filtered_data.merge(display_scores[['Region', 'Total Score', 'Rank']], left_on='Gemeindename', right_on='Region', how='inner')
         
-        # Add vertical lines for ideal population range
-        fig.add_vline(x=2500, line_dash="dash", line_color="green", annotation_text="Min Ideal")
-        fig.add_vline(x=10000, line_dash="dash", line_color="green", annotation_text="Max Ideal")
+        # Remove rows with NaN values in critical columns for visualization
+        scatter_data_clean = scatter_data.dropna(subset=['Population', 'Total Score', 'PT_Inadequacy_Score', 'Has_Railway_Station'])
         
-        st.plotly_chart(fig, use_container_width=True)
+        # Only create the plot if we have clean data
+        if len(scatter_data_clean) > 0:
+            fig = px.scatter(
+                scatter_data_clean,
+                x='Population',
+                y='Total Score',
+                color='Has_Railway_Station',
+                size='PT_Inadequacy_Score',
+                hover_name='Gemeindename',
+                hover_data=['Rank', 'PT_Class', 'Settlement_Type'],
+                title='Population vs MCDA Score',
+                labels={
+                    'Population': 'Population',
+                    'Total Score': 'MCDA Score (0-100)',
+                    'Has_Railway_Station': 'Has Railway Station',
+                    'PT_Inadequacy_Score': 'PT Inadequacy Score'
+                },
+                color_discrete_sequence=['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
+            )
+            
+            # Add vertical lines for ideal population range
+            fig.add_vline(x=2500, line_dash="dash", line_color="green", annotation_text="Min Ideal")
+            fig.add_vline(x=10000, line_dash="dash", line_color="green", annotation_text="Max Ideal")
+            
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("No complete data available for scatter plot visualization.")
+
         
         # Settlement Type Distribution
         st.markdown("<h3>Settlement Type Distribution in Top Gemeinden</h3>", unsafe_allow_html=True)

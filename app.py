@@ -120,13 +120,12 @@ def normalize_data(df, benefit_cost_map):
     
     return normalized_df
 
-# Function to calculate MCDA scores
 def calculate_mcda_scores(normalized_df, weights, criteria_categories):
     # Initialize scores DataFrame
     scores_df = pd.DataFrame()
     scores_df['Region'] = normalized_df['Region']
-    scores_df['Total Score'] = 0.0  # float type to avoid int + NaN issues
-
+    scores_df['Total Score'] = 0
+    
     # Calculate weighted scores for each criterion
     for col in normalized_df.columns[1:]:
         if col in criteria_categories:
@@ -140,12 +139,14 @@ def calculate_mcda_scores(normalized_df, weights, criteria_categories):
                 scores_df[f'{col} Score'] = normalized_df[col] * criterion_weight
                 # Add to total score
                 scores_df['Total Score'] += scores_df[f'{col} Score']
+    
+    # Calculate rank
+    # Use method='min' to handle ties and na_option='bottom' to put NaN values at the bottom
+        ranks = scores_df['Total Score'].rank(ascending=False, method='min', na_option='bottom')
+# Convert to nullable integer type to handle NaN values
+        scores_df['Rank'] = ranks.astype('Int64')
 
-    # Fill any missing values
-    scores_df['Total Score'] = scores_df['Total Score'].fillna(0)
-    # Calculate rank with nullable Int64 to handle NaNs safely
-    scores_df['Rank'] = scores_df['Total Score'].rank(ascending=False).astype('Int64')
-
+    
     return scores_df
 
 

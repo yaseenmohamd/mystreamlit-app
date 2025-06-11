@@ -125,8 +125,8 @@ def calculate_mcda_scores(normalized_df, weights, criteria_categories):
     # Initialize scores DataFrame
     scores_df = pd.DataFrame()
     scores_df['Region'] = normalized_df['Region']
-    scores_df['Total Score'] = 0
-    
+    scores_df['Total Score'] = 0.0  # float type to avoid int + NaN issues
+
     # Calculate weighted scores for each criterion
     for col in normalized_df.columns[1:]:
         if col in criteria_categories:
@@ -140,11 +140,14 @@ def calculate_mcda_scores(normalized_df, weights, criteria_categories):
                 scores_df[f'{col} Score'] = normalized_df[col] * criterion_weight
                 # Add to total score
                 scores_df['Total Score'] += scores_df[f'{col} Score']
-    
-    # Calculate rank
-    scores_df['Rank'] = scores_df['Total Score'].rank(ascending=False).astype(int)
-    
+
+    # Fill any missing values
+    scores_df['Total Score'] = scores_df['Total Score'].fillna(0)
+    # Calculate rank with nullable Int64 to handle NaNs safely
+    scores_df['Rank'] = scores_df['Total Score'].rank(ascending=False).astype('Int64')
+
     return scores_df
+
 
 # Function to create a downloadable Excel file
 def to_excel_download_link(df, filename, sheet_name):

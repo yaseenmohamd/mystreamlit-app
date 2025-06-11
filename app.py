@@ -251,7 +251,13 @@ if st.session_state.data_loaded:
     
     # Railway station filter
     railway_filter = st.sidebar.checkbox("Only show gemeinden with railway stations", value=False)
-    
+    # PT Class filter
+    pt_class_filter = st.sidebar.selectbox(
+        "Public Transport Quality Filter",
+        options=["All PT Classes", "Exclude PT Class 4", "Exclude PT Class 5", "Exclude PT Classes 4 & 5", "Only PT Classes 4 & 5"],
+        index=0
+    )
+
     # Population range filter
     try:
         # Ensure Population column is numeric
@@ -287,7 +293,20 @@ if st.session_state.data_loaded:
             filtered_data = filtered_data[filtered_data['Has_Railway_Station'] == 1]
         except Exception as e:
             st.warning(f"Could not filter by railway station: {e}")
-    
+     # Apply PT Class filter
+    if pt_class_filter != "All PT Classes":
+        try:
+            if pt_class_filter == "Exclude PT Class 4":
+                filtered_data = filtered_data[filtered_data['PT_Class'] != 4]
+            elif pt_class_filter == "Exclude PT Class 5":
+                filtered_data = filtered_data[filtered_data['PT_Class'] != 5]
+            elif pt_class_filter == "Exclude PT Classes 4 & 5":
+                filtered_data = filtered_data[~filtered_data['PT_Class'].isin([4, 5])]
+            elif pt_class_filter == "Only PT Classes 4 & 5":
+                filtered_data = filtered_data[filtered_data['PT_Class'].isin([4, 5])]
+        except Exception as e:
+            st.warning(f"Could not filter by PT Class: {e}")
+
     try:
         # Convert Population to numeric for filtering
         filtered_data['Population'] = pd.to_numeric(filtered_data['Population'], errors='coerce')

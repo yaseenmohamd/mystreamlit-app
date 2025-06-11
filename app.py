@@ -482,7 +482,7 @@ if st.session_state.data_loaded:
                 color_scale = 'Viridis'
                 color_label = 'Settlement Type (1=Urban, 2=Intermediate, 3=Rural)'
             elif map_criteria == 'Has_Railway_Station':
-                color_column = 'Has_Railway_Station'
+                color_column = 'Has_Railway_Station score' #edited
                 color_scale = ['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
                 color_label = 'Has Railway Station (0=No, 1=Yes)'
             

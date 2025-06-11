@@ -485,6 +485,13 @@ if st.session_state.data_loaded:
                 color_column = 'Has_Railway_Station Score' #edited
                 color_scale = ['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
                 color_label = 'Has Railway Station (0=No, 1=Yes)'
+                  # Calculate number of municipalities with/without railway station
+                with_station = gdf_wgs84[gdf_wgs84['Has_Railway_Station'] == 1].shape[0]
+                without_station = gdf_wgs84[gdf_wgs84['Has_Railway_Station'] == 0].shape[0]
+    
+    # Display counts
+                st.markdown(f"**Municipalities with railway station:** {with_station}")
+                st.markdown(f"**Municipalities without railway station:** {without_station}")
             
             fig = px.choropleth_mapbox(
                 gdf_wgs84,

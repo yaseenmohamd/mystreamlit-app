@@ -4,10 +4,11 @@ This Streamlit application provides an interactive visualization and analysis to
 
 ## Features
 
-- **CSV Data Input**: Uses your Final_MCDA_Data(1).csv file directly
+- **CSV Data Input**: Uses Final_MCDA_Data(1).csv file directly in the script
 - **Interactive Weight Adjustment**: Dynamically adjust criteria weights and see how rankings change
-- **Enhanced Population Filter**: Population range slider up to 25,000
+- **Enhanced Population Filter**: Population range slider up to maximum value
 - **Railway Station Filter**: Option to show only gemeinden with railway stations
+- **Public Transport Class Filter**: Option to remove the Public transport classes 4 and 5 for results
 - **Map Visualization**: View MCDA scores on interactive maps with color gradients
 - **Sensitivity Analysis**: Compare how different weighting schemes affect gemeinde rankings
 - **Data Explorer**: Analyze correlations between criteria and explore raw data
@@ -59,5 +60,5 @@ The app follows the same normalization and weighting methodology as the Excel-ba
 ## Map Visualization
 
 For map visualization to work properly, the app looks for:
-- A GeoPackage file with gemeinde boundaries (included in the data folder)
-- The gemeinde names in your CSV file should match those in the GeoPackage
+- A GeoPackage file with gemeinde boundaries (included in the data folder), which must be present for map visualizations
+- The gemeinde names in the CSV file should match those in the GeoPackage

@@ -9,7 +9,6 @@ from io import BytesIO
 import base64
 import os
 
-# Set page configuration
 st.set_page_config(
     page_title="myBuxi MCDA Framework Visualization",
     page_icon="🚌",
@@ -17,7 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Add custom CSS
+#custom CSS
 st.markdown("""
 <style>
     .main-header {
@@ -48,12 +47,12 @@ st.markdown("<h1 class='main-header'>myBuxi MCDA Framework Visualization</h1>", 
 
 st.markdown("""
 <div class='info-box'>
-This app allows you to visualize and analyze your MCDA framework for identifying suitable regions for myBuxi expansion.
-Use the interactive controls to adjust weights and explore results.
+This app visualizes and analyzes MCDA framework for identifying suitable regions for myBuxi expansion.
+Usethe interactive controls to adjust weights and explore results.
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar for file upload and controls
+# Sidebar for controls
 st.sidebar.markdown("<h2 class='sub-header'>Controls</h2>", unsafe_allow_html=True)
 
 # Initialize session state for storing data
@@ -67,12 +66,12 @@ if 'data_loaded' not in st.session_state:
 # Function to load data from CSV
 def load_data_from_csv():
     try:
-        # Check if the file exists in the data directory
+       
         data_file = './Final_MCDA_Data(1).csv'
         if os.path.exists(data_file):
             df = pd.read_csv(data_file)
         
-        # Ensure all numeric columns are properly typed
+        # Ensuring all numeric columns are properly typed
         for col in df.columns:
             if col not in ['Gemeindename']:
                 try:
@@ -112,16 +111,16 @@ def normalize_data(df, benefit_cost_map):
                 normalized_df[col] = 1 if is_benefit else 0
             else:
                 if is_benefit:
-                    # For benefit criteria: (Value - Min) / (Max - Min)
+                    # For benefit criteria forUmula: (Value - Min) / (Max - Min)
                     normalized_df[col] = (df[col] - min_val) / (max_val - min_val)
                 else:
-                    # For cost criteria: (Max - Value) / (Max - Min)
+                    # For cost criteria formula: (Max - Value) / (Max - Min)
                     normalized_df[col] = (max_val - df[col]) / (max_val - min_val)
     
     return normalized_df
 
 def calculate_mcda_scores(normalized_df, weights, criteria_categories):
-    # Initialize scores DataFrame
+    
     scores_df = pd.DataFrame()
     scores_df['Region'] = normalized_df['Region']
     scores_df['Total Score'] = 0
@@ -131,26 +130,25 @@ def calculate_mcda_scores(normalized_df, weights, criteria_categories):
         if col in criteria_categories:
             category = criteria_categories[col]
             if category in weights:
-                # Count criteria in this category
+               
                 category_criteria_count = sum(1 for c in criteria_categories.values() if c == category)
-                # Distribute weight among criteria in the category
+               
                 criterion_weight = weights[category] / category_criteria_count
-                # Calculate weighted score
+                
                 scores_df[f'{col} Score'] = normalized_df[col] * criterion_weight
-                # Add to total score
+                
                 scores_df['Total Score'] += scores_df[f'{col} Score']
     
-    # Calculate rank
-    # Use method='min' to handle ties and na_option='bottom' to put NaN values at the bottom
+  #ranks calculating
         ranks = scores_df['Total Score'].rank(ascending=False, method='min', na_option='bottom')
-# Convert to nullable integer type to handle NaN values
+
         scores_df['Rank'] = ranks.astype('Int64')
 
     
     return scores_df
 
 
-# Function to create a downloadable Excel file
+
 def to_excel_download_link(df, filename, sheet_name):
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
@@ -160,7 +158,7 @@ def to_excel_download_link(df, filename, sheet_name):
     href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{filename}">Download {filename}</a>'
     return href
 
-# Load data from CSV
+
 region_data, weights, results = load_data_from_csv()
 
 if region_data is not None and weights is not None:
@@ -169,7 +167,7 @@ if region_data is not None and weights is not None:
     st.session_state.weights = weights
     st.session_state.results = results
     
-    # Determine benefit/cost type for each criterion
+    # benefit/cost type for each criterion
     benefit_cost_map = {
         'Gemeinde_Code': 'Neutral',
         'Population': 'Benefit',
@@ -190,7 +188,7 @@ if region_data is not None and weights is not None:
         'Commuter_Flow_Total': 'Benefit'
     }
     
-    # Map criteria to categories
+    # criteria to categories
     criteria_categories = {
         'Population': 'Demographic Characteristics',
         'Population_Density': 'Demographic Characteristics',
@@ -209,26 +207,26 @@ if region_data is not None and weights is not None:
     st.session_state.benefit_cost_map = benefit_cost_map
     st.session_state.criteria_categories = criteria_categories
     
-    # Try to load gemeinde boundaries if available
+
     try:
-        # First check if the file exists in the data directory
+    
         boundary_file_data = './historisierte-administrative_grenzen_g0_2015-01-01_2056.gpkg'
 
         
         if os.path.exists(boundary_file_data):
             gemeinde_boundaries = gpd.read_file(boundary_file_data, layer='Communes_G0_20150101')
-            # Rename columns to match
+           
             gemeinde_boundaries = gemeinde_boundaries.rename(columns={'GDENAME': 'Region'})
             st.session_state.gemeinde_boundaries = gemeinde_boundaries
     except Exception as e:
         st.warning(f"Could not load gemeinde boundaries: {e}")
         st.session_state.gemeinde_boundaries = None
 
-# Display weight adjustment sliders if data is loaded
+
 if st.session_state.data_loaded:
     st.sidebar.markdown("<h3>Adjust Criteria Weights</h3>", unsafe_allow_html=True)
     
-    # Create sliders for each weight category
+
     adjusted_weights = {}
     for category, weight in st.session_state.weights.items():
         adjusted_weights[category] = st.sidebar.slider(
@@ -240,36 +238,35 @@ if st.session_state.data_loaded:
             format="%.2f"
         )
     
-    # Normalize weights to sum to 1
     total_weight = sum(adjusted_weights.values())
     if total_weight > 0:
         for category in adjusted_weights:
             adjusted_weights[category] = adjusted_weights[category] / total_weight
     
-    # Filter options
+
     st.sidebar.markdown("<h3>Filters</h3>", unsafe_allow_html=True)
     
-    # Railway station filter
+
     railway_filter = st.sidebar.checkbox("Only show gemeinden with railway stations", value=False)
-    # PT Class filter
+
     pt_class_filter = st.sidebar.selectbox(
         "Public Transport Quality Filter",
         options=["All PT Classes", "Exclude PT Class 4", "Exclude PT Class 5", "Exclude PT Classes 4 & 5", "Only PT Classes 4 & 5"],
         index=0
     )
 
-    # Population range filter
+ 
     try:
-        # Ensure Population column is numeric
+    
         population_col = pd.to_numeric(st.session_state.region_data['Population'], errors='coerce')
-        # Filter out NaN values for min/max calculation
+       
         population_col = population_col.dropna()
         
         if len(population_col) > 0:
             population_min = population_col.min()
             population_max = max(population_col.max(), 25000)  # Ensure max is at least 25000
         else:
-            # Default values if no valid numeric data
+           
             population_min = 0
             population_max = 25000
             
@@ -282,10 +279,10 @@ if st.session_state.data_loaded:
         )
     except Exception as e:
         st.sidebar.warning(f"Could not determine population range: {e}")
-        # Use default values
+      
         population_range = (2500, 10000)
     
-    # Apply filters to the data
+ 
     filtered_data = st.session_state.region_data.copy()
     
     if railway_filter:
@@ -293,7 +290,7 @@ if st.session_state.data_loaded:
             filtered_data = filtered_data[filtered_data['Has_Railway_Station'] == 1]
         except Exception as e:
             st.warning(f"Could not filter by railway station: {e}")
-     # Apply PT Class filter
+   
     if pt_class_filter != "All PT Classes":
         try:
             if pt_class_filter == "Exclude PT Class 4":
@@ -308,7 +305,7 @@ if st.session_state.data_loaded:
             st.warning(f"Could not filter by PT Class: {e}")
 
     try:
-        # Convert Population to numeric for filtering
+     
         filtered_data['Population'] = pd.to_numeric(filtered_data['Population'], errors='coerce')
         filtered_data = filtered_data[
             (filtered_data['Population'] >= population_range[0]) & 
@@ -317,35 +314,35 @@ if st.session_state.data_loaded:
     except Exception as e:
         st.warning(f"Could not filter by population range: {e}")
     
-    # Normalize the filtered data
+  
     normalized_data = normalize_data(filtered_data, st.session_state.benefit_cost_map)
     
-    # Calculate MCDA scores with adjusted weights
+    
     scores = calculate_mcda_scores(normalized_data, adjusted_weights, st.session_state.criteria_categories)
     
-    # Sort by total score
+  
     scores_sorted = scores.sort_values('Total Score', ascending=False).reset_index(drop=True)
     
-    # Main content area with tabs
+
     tab1, tab2, tab3, tab4, tab5 = st.tabs(["Results", "Map Visualization", "Sensitivity Analysis", "Data Explorer", "Additional Visualizations"])
     
     with tab1:
         st.markdown("<h2 class='sub-header'>MCDA Results</h2>", unsafe_allow_html=True)
         
-        # Number of top gemeinden to display
+     
         num_top_gemeinden = st.slider("Number of top gemeinden to display", min_value=10, max_value=100, value=20, step=10)
         
-        # Display top N results
+      
         st.markdown(f"<h3>Top {num_top_gemeinden} Gemeinden</h3>", unsafe_allow_html=True)
         
         # Scale scores to 0-100 for better readability
         display_scores = scores_sorted.copy()
         display_scores['Total Score'] = display_scores['Total Score'] * 100
         
-        # Display top N
+    
         st.dataframe(display_scores[['Rank', 'Region', 'Total Score']].head(num_top_gemeinden).style.format({'Total Score': '{:.2f}'}))
         
-        # Download link for full results
+     
         st.markdown(to_excel_download_link(display_scores, "mcda_results.xlsx", "Results"), unsafe_allow_html=True)
         
         # Bar chart of top 10 gemeinden
@@ -384,17 +381,17 @@ if st.session_state.data_loaded:
         st.markdown("<h2 class='sub-header'>Map Visualization</h2>", unsafe_allow_html=True)
         
         if st.session_state.gemeinde_boundaries is not None:
-            # Merge scores with boundaries
+         
             gdf = st.session_state.gemeinde_boundaries.merge(scores_sorted, on='Region', how='inner')
             
-            # Merge with original data to get additional columns for hover
+          
             gdf = gdf.merge(filtered_data[['Gemeindename', 'Population', 'Incoming_Commuters', 'Outgoing_Commuters', 'PT_Inadequacy_Score', 'PT_Class', 'Settlement_Type']], 
                            left_on='Region', right_on='Gemeindename', how='left')
             
-            # Scale scores to 0-100 for better readability
+       
             gdf['Score_100'] = gdf['Total Score'] * 100
             
-            # Create map
+      
             st.markdown("<h3>MCDA Scores by Gemeinde</h3>", unsafe_allow_html=True)
             
             fig, ax = plt.subplots(1, 1, figsize=(10, 8))
@@ -408,7 +405,7 @@ if st.session_state.data_loaded:
                 legend_kwds={'label': "MCDA Score (0-100)"}
             )
             
-            # Add labels for top 10
+        
             top_10 = gdf.sort_values('Total Score', ascending=False).head(10)
             for idx, row in top_10.iterrows():
                 ax.annotate(
@@ -424,23 +421,23 @@ if st.session_state.data_loaded:
             ax.set_axis_off()
             st.pyplot(fig)
             
-            # Interactive map with Plotly
+           
             st.markdown("<h3>Interactive Map</h3>", unsafe_allow_html=True)
             
-            # Convert to WGS84 for Plotly
+        
             gdf_wgs84 = gdf.to_crs(epsg=4326)
             
-            # Simplify geometries for better performance
+          
             gdf_wgs84['geometry'] = gdf_wgs84['geometry'].simplify(0.001)
             
-            # Create GeoJSON for Plotly
+           
             geojson = gdf_wgs84.__geo_interface__
             
-            # Map settlement type to text description
+         
             settlement_map = {1: "Urban", 2: "Intermediate", 3: "Rural"}
             gdf_wgs84['Settlement_Type_Text'] = gdf_wgs84['Settlement_Type'].map(settlement_map)
             
-            # Create choropleth map with enhanced hover data
+         
             fig = px.choropleth_mapbox(
                 gdf_wgs84,
                 geojson=geojson,
@@ -475,7 +472,7 @@ if st.session_state.data_loaded:
             fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
             st.plotly_chart(fig, use_container_width=True)
             
-            # Map color by different criteria
+           
             st.markdown("<h3>Map by Different Criteria</h3>", unsafe_allow_html=True)
             
             map_criteria = st.selectbox(
@@ -505,14 +502,14 @@ if st.session_state.data_loaded:
                 color_scale = 'Viridis'
                 color_label = 'Settlement Type (1=Urban, 2=Intermediate, 3=Rural)'
             elif map_criteria == 'Has_Railway_Station':
-                color_column = 'Has_Railway_Station Score' #edited
+                color_column = 'Has_Railway_Station Score' #edited later
                 color_scale = ['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
                 color_label = 'Has Railway Station (0=No, 1=Yes)'
                   # Calculate number of municipalities with/without railway station
                 with_station = gdf_wgs84[gdf_wgs84['Has_Railway_Station'] == 1].shape[0]
                 without_station = gdf_wgs84[gdf_wgs84['Has_Railway_Station'] == 0].shape[0]
     
-    # Display counts
+
                 st.markdown(f"**Municipalities with railway station:** {with_station}")
                 st.markdown(f"**Municipalities without railway station:** {without_station}")
             
@@ -547,7 +544,7 @@ if st.session_state.data_loaded:
     with tab3:
         st.markdown("<h2 class='sub-header'>Sensitivity Analysis</h2>", unsafe_allow_html=True)
         
-        # Compare original vs adjusted weights
+        # original vs adjusted weights
         st.markdown("<h3>Weight Comparison</h3>", unsafe_allow_html=True)
         
         weight_comparison = pd.DataFrame({
@@ -577,10 +574,10 @@ if st.session_state.data_loaded:
         )
         st.plotly_chart(fig, use_container_width=True)
         
-        # Create alternative weight scenarios
+        # alternative weight scenarios
         st.markdown("<h3>Alternative Weight Scenarios</h3>", unsafe_allow_html=True)
         
-        # Define alternative scenarios
+        # alternative scenarios
         scenarios = {
             "Current": adjusted_weights,
             "Equal Weights": {cat: 1/6 for cat in adjusted_weights.keys()},
@@ -610,7 +607,7 @@ if st.session_state.data_loaded:
             }
         }
         
-        # Calculate results for each scenario
+        # results for each scenario
         scenario_results = {}
         for name, weights in scenarios.items():
             results = calculate_mcda_scores(normalized_data, weights, st.session_state.criteria_categories)
@@ -633,30 +630,30 @@ if st.session_state.data_loaded:
         )
         st.plotly_chart(fig, use_container_width=True)
         
-        # Number of gemeinden to analyze in rank stability
+      
         num_gemeinden_stability = st.slider("Number of gemeinden for rank stability analysis", min_value=10, max_value=50, value=20, step=5)
         
         # Rank stability analysis
         st.markdown("<h3>Rank Stability Analysis</h3>", unsafe_allow_html=True)
         
-        # Get top gemeinden across all scenarios
+        #  showing top gemeinden across all scenarios
         top_gemeinden = set()
         for name, results in scenario_results.items():
             top_gemeinden.update(results.head(num_gemeinden_stability)['Region'].tolist())
         
-        # Create rank comparison dataframe
+     
         rank_comparison = pd.DataFrame({'Region': list(top_gemeinden)})
         for name, results in scenario_results.items():
             rank_map = dict(zip(results['Region'], results['Rank']))
             rank_comparison[f'{name} Rank'] = rank_comparison['Region'].map(lambda x: rank_map.get(x, float('nan')))
         
-        # Sort by current rank
+       
         rank_comparison = rank_comparison.sort_values('Current Rank').head(num_gemeinden_stability)
         
-        # Display rank comparison
+       
         st.dataframe(rank_comparison)
         
-        # Create rank stability chart
+       
         rank_data = []
         for _, row in rank_comparison.head(10).iterrows():
             for scenario in scenarios.keys():
@@ -681,33 +678,33 @@ if st.session_state.data_loaded:
         fig.update_layout(yaxis={'autorange': 'reversed'})  # Reverse y-axis so rank 1 is at the top
         st.plotly_chart(fig, use_container_width=True)
         
-        # Criteria contribution analysis
+      
         st.markdown("<h3>Criteria Contribution Analysis</h3>", unsafe_allow_html=True)
         
-        # Select gemeinde for analysis
+       
         top_gemeinden_list = display_scores.head(20)['Region'].tolist()
         selected_gemeinde = st.selectbox("Select gemeinde for criteria contribution analysis", options=top_gemeinden_list)
         
-        # Get criteria scores for selected gemeinde
+       
         gemeinde_scores = scores[scores['Region'] == selected_gemeinde].iloc[0]
         
-        # Extract criteria scores
+      
         criteria_scores = {}
         for col in gemeinde_scores.index:
             if col.endswith(' Score') and col != 'Total Score':
                 criteria_name = col.replace(' Score', '')
                 criteria_scores[criteria_name] = gemeinde_scores[col]
         
-        # Create dataframe for visualization
+     
         criteria_df = pd.DataFrame({
             'Criterion': list(criteria_scores.keys()),
             'Score': list(criteria_scores.values())
         })
         
-        # Sort by score
+     
         criteria_df = criteria_df.sort_values('Score', ascending=False)
         
-        # Create bar chart
+
         fig = px.bar(
             criteria_df,
             x='Criterion',
@@ -722,21 +719,21 @@ if st.session_state.data_loaded:
     with tab4:
         st.markdown("<h2 class='sub-header'>Data Explorer</h2>", unsafe_allow_html=True)
         
-        # Display raw data
+      
         st.markdown("<h3>Raw Data</h3>", unsafe_allow_html=True)
         st.dataframe(filtered_data)
         
-        # Correlation matrix
+    
         st.markdown("<h3>Correlation Matrix</h3>", unsafe_allow_html=True)
         
         try:
-            # Select only numeric columns
+          
             numeric_data = filtered_data.select_dtypes(include=[np.number])
             
-            # Calculate correlation matrix
+          
             corr = numeric_data.corr()
             
-            # Create heatmap
+      
             fig = px.imshow(
                 corr,
                 text_auto='.2f',
@@ -771,16 +768,16 @@ if st.session_state.data_loaded:
     with tab5:
         st.markdown("<h2 class='sub-header'>Additional Visualizations</h2>", unsafe_allow_html=True)
         
-        # Population vs MCDA Score
+     
         st.markdown("<h3>Population vs MCDA Score</h3>", unsafe_allow_html=True)
         
-              # Create scatter plot with NaN handling
+             
         scatter_data = filtered_data.merge(display_scores[['Region', 'Total Score', 'Rank']], left_on='Gemeindename', right_on='Region', how='inner')
         
-        # Remove rows with NaN values in critical columns for visualization
+       
         scatter_data_clean = scatter_data.dropna(subset=['Population', 'Total Score', 'PT_Inadequacy_Score', 'Has_Railway_Station'])
         
-        # Only create the plot if we have clean data
+       
         if len(scatter_data_clean) > 0:
             fig = px.scatter(
                 scatter_data_clean,
@@ -800,7 +797,7 @@ if st.session_state.data_loaded:
                 color_discrete_sequence=['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
             )
             
-            # Add vertical lines for ideal population range
+         ge
             fig.add_vline(x=2500, line_dash="dash", line_color="green", annotation_text="Min Ideal")
             fig.add_vline(x=10000, line_dash="dash", line_color="green", annotation_text="Max Ideal")
             
@@ -812,10 +809,10 @@ if st.session_state.data_loaded:
         # Settlement Type Distribution
         st.markdown("<h3>Settlement Type Distribution in Top Gemeinden</h3>", unsafe_allow_html=True)
         
-        # Number of top gemeinden to analyze
+    
         num_gemeinden_analysis = st.slider("Number of top gemeinden for analysis", min_value=10, max_value=100, value=50, step=10)
         
-        # Get settlement type distribution for top N gemeinden
+     
         top_gemeinden_data = filtered_data.merge(
             display_scores[['Region', 'Rank']].head(num_gemeinden_analysis), 
             left_on='Gemeindename', 
@@ -823,11 +820,11 @@ if st.session_state.data_loaded:
             how='inner'
         )
         
-        # Map settlement type to text
+       
         settlement_map = {1: "Urban", 2: "Intermediate", 3: "Rural"}
         top_gemeinden_data['Settlement_Type_Text'] = top_gemeinden_data['Settlement_Type'].map(settlement_map)
         
-        # Create pie chart
+        
         fig = px.pie(
             top_gemeinden_data,
             names='Settlement_Type_Text',
@@ -849,10 +846,10 @@ if st.session_state.data_loaded:
         )
         st.plotly_chart(fig, use_container_width=True)
         
-        # Railway Station vs Non-Railway Station Comparison
+       
         st.markdown("<h3>Railway Station Impact Analysis</h3>", unsafe_allow_html=True)
         
-        # Group by railway station and calculate average scores
+       
         railway_comparison = display_scores.merge(
             filtered_data[['Gemeindename', 'Has_Railway_Station']], 
             left_on='Region', 
@@ -881,7 +878,7 @@ if st.session_state.data_loaded:
         # Commuter Flow Analysis
         st.markdown("<h3>Commuter Flow Analysis</h3>", unsafe_allow_html=True)
         
-        # Create scatter plot
+        # scatter plot
         fig = px.scatter(
             filtered_data.merge(display_scores[['Region', 'Total Score', 'Rank']], left_on='Gemeindename', right_on='Region', how='inner'),
             x='Incoming_Commuters',
@@ -900,7 +897,7 @@ if st.session_state.data_loaded:
             color_continuous_scale='Blues'
         )
         
-        # Add diagonal line (equal incoming and outgoing)
+       
         max_val = max(
             filtered_data['Incoming_Commuters'].max(),
             filtered_data['Outgoing_Commuters'].max()
@@ -917,10 +914,10 @@ if st.session_state.data_loaded:
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # PT Inadequacy vs PT Class
+        
         st.markdown("<h3>PT Inadequacy vs PT Class</h3>", unsafe_allow_html=True)
         
-        # Create scatter plot
+        
         fig = px.scatter(
             filtered_data.merge(display_scores[['Region', 'Total Score', 'Rank']], left_on='Gemeindename', right_on='Region', how='inner'),
             x='PT_Class',
@@ -940,11 +937,11 @@ if st.session_state.data_loaded:
         )
         st.plotly_chart(fig, use_container_width=True)
         
-        # Geographic Distribution of Top Gemeinden
+        
         st.markdown("<h3>Geographic Distribution of Top Gemeinden</h3>", unsafe_allow_html=True)
         
         if st.session_state.gemeinde_boundaries is not None:
-            # Get top N gemeinden
+        
             top_n = st.slider("Number of top gemeinden to highlight", min_value=10, max_value=100, value=30, step=10)
             
             # Merge scores with boundaries
@@ -964,7 +961,7 @@ if st.session_state.data_loaded:
                 edgecolor='white'
             )
             
-            # Plot top N gemeinden with color gradient
+            # 
             top_n_gdf = gdf.sort_values('Total Score', ascending=False).head(top_n)
             top_n_gdf.plot(
                 column='Score_100',
@@ -994,7 +991,7 @@ if st.session_state.data_loaded:
         else:
             st.warning("Gemeinde boundaries not available. Upload the GeoPackage file to enable map visualization.")
 else:
-    # Display instructions if no file is uploaded
+    
     st.markdown("""
     <div class='info-box'>
     <h3>Getting Started</h3>

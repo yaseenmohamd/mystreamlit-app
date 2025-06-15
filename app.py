@@ -797,7 +797,6 @@ if st.session_state.data_loaded:
                 color_discrete_sequence=['#EF4444', '#3B82F6']  # Red for No, Blue for Yes
             )
             
-         ge
             fig.add_vline(x=2500, line_dash="dash", line_color="green", annotation_text="Min Ideal")
             fig.add_vline(x=10000, line_dash="dash", line_color="green", annotation_text="Max Ideal")
             
